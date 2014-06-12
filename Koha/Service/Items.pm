@@ -46,6 +46,7 @@ use C4::Dates;
 use C4::Items;
 use C4::Members;
 use C4::Reserves;
+use DateTime;
 use Koha::DateUtils;
 
 sub new {
@@ -79,6 +80,7 @@ sub checkin {
 
     my $branch = C4::Context->userenv ? C4::Context->userenv->{'branch'} : '';
     my $dropboxmode = $self->query->param('dropboxmode');
+    my $today = DateTime->now( time_zone => C4::Context->tz() );
 
     my $return_date_override = $self->query->param('return_date_override');
     if ( $return_date_override ) {
@@ -102,8 +104,15 @@ sub checkin {
         my ( $returned, $messages, $issueinformation, $borrower ) = AddReturn( 
                 $barcode, $branch, $exemptfine, $dropboxmode, $return_date_override );
 
+        my $biblio = GetBiblioFromItemNumber( GetItemnumberFromBarcode($barcode) ) unless $messages->{BadBarcode};
+
+        if ( $issueinformation->{'date_due'} ) {
+            $issueinformation->{'overdue'} = DateTime->compare($issueinformation->{'date_due'}, $today ) == -1 ? 1 : 0;
+        }
+
         push @responses, {
-                barcode => $barcode, 
+                barcode => $barcode,
+                biblio => $biblio, 
                 returned => $returned, 
                 messages => $messages,
                 issueinformation => $issueinformation,
