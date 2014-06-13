@@ -9,6 +9,7 @@
 
 [% INCLUDE 'calendar.inc' %]
 <script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery-ui-timepicker-addon.min.js"></script>
+<script src="[% interface %]/lib/angular/angular.min.js"></script>
 
 <script type="text/javascript">
 //<![CDATA[
@@ -84,6 +85,68 @@ $(document).ready(function () {
     });
     [% END %]
 });
+
+var authorised_values = {
+    [% FOREACH category IN authorised_values -%]
+        "[% category.key %]":{
+            [% FOREACH value IN category.value -%]
+                "[% value.value %]":"[% value.lib %]",
+            [% END -%]
+        },
+    [% END -%]
+}
+
+var checkinApp = angular.module( 'checkinApp', [] )
+    .filter( 'isNotEmpty', function() {
+        return function(obj) {
+            return !$.isEmptyObject(obj);
+        };
+    } );
+
+checkinApp.controller( 'CheckinController', function ( $scope, $http, $timeout ) {
+
+    $scope.today = $.datepicker.formatDate('yyyy-mm-dd', new Date());
+    $http.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded";
+    $scope.authorised_values = authorised_values;
+
+    $scope.checkins = [];
+
+    $('#yui-main > .yui-b').show();
+    $('.loading-overlay').hide();
+
+    $scope.checkin = function(barcode, confirmed) {
+        var barcode = barcode || $scope.barcode;
+        var params = { 
+            checkedin: 1,
+            dropboxmode : $scope.dropboxmode || "",
+            return_date_override : $scope.return_date_override || "",
+            exemptfine : $scope.exemptfine || "", 
+            };
+        if ( confirmed ) {
+            params.confirmed = 1;
+            params.cancelreserve = $scope.cancelreserve || "";
+        }
+        $http.post( '/cgi-bin/koha/svc/items/' + $scope.barcode, $.param( params ) ).success(function( data ) {
+                data = data.responses[0];
+                $scope.last_barcode = barcode;
+
+                $scope.barcode = '';
+                $scope.biblio = data.biblio;
+                $scope.borrower = data.borrower;
+                $scope.issueinformation = data.issueinformation;
+                $scope.messages = data.messages;
+                $scope.returned = data.returned;
+
+                if(returned) {
+                    $scope.checkins.unshift( { 
+                        issueinformation : $scope.issueinformation, 
+                        borrower : $scope.borrower,
+                        biblio : $scope.biblio,
+                    } );
+                }
+            });
+    };     
+} );
 //]]>
 </script>
 </head>
@@ -434,18 +497,12 @@ $(document).ready(function () {
     </div>
 </div>
     <div class="yui-g">
-    <form id="checkin-form" method="post" action="/cgi-bin/koha/circ/returns.pl" autocomplete="off" >
+    <form id="checkin-form" autocomplete="off" ng-submit="checkin()">
     <div class="yui-u first">
             <fieldset>
     <legend>Check in</legend>
             <label for="barcode">Enter item barcode: </label>
-            [% IF ( exemptfine ) %]
-            <input name="barcode" id="barcode" size="14" class="focus alert"/>
-            [% ELSIF ( dropboxmode ) %]
-            <input name="barcode" id="barcode" size="14" class="focus alert"/>
-            [% ELSE %]
-            <input name="barcode" id="barcode" size="14" class="focus"/>
-            [% END %]
+            <input name="barcode" id="barcode" size="14" class="focus" ng-model="barcode"/>
             <input type="submit" class="submit" value="Submit" />
 
             [% IF Koha.Preference('SpecifyReturnDate') %]
@@ -478,20 +535,12 @@ $(document).ready(function () {
                 <legend>Options</legend>
                     [% IF ( CAN_user_updatecharges_writeoff && overduecharges ) %]
                     <p>
-                        [% IF ( exemptfine ) %]
-                        <input type="checkbox" id="exemptcheck" name="exemptfine" value="exemptfine" checked="checked" />
-                        [% ELSE %]
-                        <input type="checkbox" id="exemptcheck" name="exemptfine" value="exemptfine" />
-                        [% END %]
+                        <input type="checkbox" id="exemptcheck" name="exemptfine" value="exemptfine" ng-model="exemptfine" />
                         <label for="exemptcheck">Forgive overdue charges</label>
                     </p>
                     [% END %] <!-- overduecharges -->
                     <p>
-                        [% IF ( dropboxmode ) %]
-                        <input type="checkbox" id="dropboxcheck" name="dropboxmode" value="dropboxmode" checked="checked" />
-                        [% ELSE %]
-                        <input type="checkbox" id="dropboxcheck" name="dropboxmode" value="dropboxmode" />
-                        [% END %]
+                        <input type="checkbox" id="dropboxcheck" name="dropboxmode" value="dropboxmode" ng-model="dropboxmode" />
                         <label for="dropboxcheck">Book drop mode</label>
                     </p>
             </fieldset>
@@ -499,30 +548,30 @@ $(document).ready(function () {
     </form>
 </div>
 
-[% IF ( riloop ) %]
+<div ng-show="checkins.length">
     <h2>Checked-in items</h2>
     <table>
     <tr><th>Due date</th><th>Title</th> <th>Author</th> <th>Barcode</th><th>Home library</th><th>Holding library</th><th>Shelving location</th><th>Call number</th><th>Type</th>    <th>Patron</th><th>Note</th></tr>
 
-        [% FOREACH riloo IN riloop %]
-            <tr>
-            <td>[% IF ( riloo.duedate ) %]
-                    [% IF ( riloo.return_overdue ) %]
-                        <span class="overdue">[% riloo.duedate %] (overdue)</span>
-                    [% ELSE %][% riloo.duedate %]
-                    [% END %]
-                [% ELSE %]Not checked out
-                [% END %]
+            <tr ng-repeat="checkin in checkins">
+            <td>
+                <span ng-show="checkin.issueinformation.date_due">
+                    <span class="overdue" ng-show="checkin.issueinformation.overdue">{{checkin.issueinformation.date_due}} (overdue)</span>
+                    <span ng-hide="checkin.issueinformation.overdue">{{checkin.issueinformation.date_due}}</span>
+                </span>
+                <span ng-hide="checkin.issueinformation.date_due">
+                    Not checked out
+                </span>
             </td>
-            <td><a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% riloo.itembiblionumber %]">
-                    [% riloo.itemtitle |html %]</a></td>
-            <td>[% riloo.itemauthor %]</td>
-            <td><a href="/cgi-bin/koha/catalogue/moredetail.pl?biblionumber=[% riloo.itembiblionumber %]&amp;itemnumber=[% riloo.itemnumber %]#item[% riloo.itemnumber %]">[% riloo.barcode %]</a></td>
-            <td>[% riloo.homebranch %]</td>
-            <td>[% riloo.holdingbranch %]</td>
-            <td>[% riloo.location %]</td>
-            <td>[% riloo.itemcallnumber %]</td>
-            <td>[% riloo.itemtype %] [% riloo.ccode %]</td>
+            <td><a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber={{checkin.biblio.biblionumber}}">
+                    {{checkin.biblio.title}}</a></td>
+            <td>{{checkin.biblio.author}}</td>
+            <td><a href="/cgi-bin/koha/catalogue/moredetail.pl?biblionumber={{checkin.biblio.biblionumber}}&amp;itemnumber={{checkin.issueinformation.itemnumber}}#item{{checkin.issueinformation.itemnumber}}">{{checkin.issueinformation.barcode}}</a></td>
+            <td>{{checkin.issueinformation.homebranch}}</td>
+            <td>{{chekcin.issueinformation.holdingbranch}}</td>
+            <td>{{checkin.issueinformation.location}}</td>
+            <td>{{checkin.issueinformation.itemcallnumber}}</td>
+            <td>{{checkin.issueinformation.itemtype}} {{checkin.issueinformation.ccode}}</td>
             <td>[% IF ( riloo.duedate ) %]
                 <a href="/cgi-bin/koha/members/moremember.pl?borrowernumber=[% riloo.borrowernumber %]">
                     [% riloo.borsurname %], [% riloo.borfirstname %] ([% riloo.borcategorycode %])
@@ -534,7 +583,7 @@ $(document).ready(function () {
            </tr>
         [% END %]
     </table></div>
-[% END %]
+</div>
 
 
 </div>
