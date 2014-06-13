@@ -90,4 +90,6 @@ $template->{VARS}->{authorised_values} = $authorised_values;
 
 $template->{VARS}->{authvalcode_notforloan} = C4::Koha::GetAuthValCode('items.notforloan', '' );
 
+$template->{VARS}->{authvalcode_location} = C4::Koha::GetAuthValCode('items.location', '' );
+
 output_html_with_http_headers $query, $cookie, $template->output;

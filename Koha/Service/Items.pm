@@ -108,6 +108,12 @@ sub checkin {
 
         if ( $issueinformation->{'date_due'} ) {
             $issueinformation->{'overdue'} = DateTime->compare($issueinformation->{'date_due'}, $today ) == -1 ? 1 : 0;
+            $issueinformation->{ date_due_formatted } = output_pref(
+                {
+                    dt          => dt_from_string( $issueinformation->{ date_due } ),
+                    as_due_date => 1
+                }
+            );
         }
 
         push @responses, {

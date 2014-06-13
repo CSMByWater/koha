@@ -3,7 +3,7 @@
 [% USE Koha %]
 [% USE Borrowers %]
 
-[% INCLUDE 'doc-head-open.inc' %]
+[% INCLUDE 'doc-head-open.inc' angular_app = "checkinApp" %]
 <title>Koha &rsaquo; Circulation &rsaquo; Check in [% title |html %]</title>
 [% INCLUDE 'doc-head-close.inc' %]
 
@@ -116,6 +116,7 @@ checkinApp.controller( 'CheckinController', function ( $scope, $http, $timeout )
 
     $scope.checkin = function(barcode, confirmed) {
         var barcode = barcode || $scope.barcode;
+        console.log( "HELLO" );
         var params = { 
             checkedin: 1,
             dropboxmode : $scope.dropboxmode || "",
@@ -137,7 +138,7 @@ checkinApp.controller( 'CheckinController', function ( $scope, $http, $timeout )
                 $scope.messages = data.messages;
                 $scope.returned = data.returned;
 
-                if(returned) {
+                if(data.returned) {
                     $scope.checkins.unshift( { 
                         issueinformation : $scope.issueinformation, 
                         borrower : $scope.borrower,
@@ -150,7 +151,7 @@ checkinApp.controller( 'CheckinController', function ( $scope, $http, $timeout )
 //]]>
 </script>
 </head>
-<body id="circ_returns" class="circ">
+<body id="circ_returns" class="circ" ng-controller="CheckinController">
 
 [% INCLUDE 'header.inc' %]
 [% INCLUDE 'checkin-search.inc' %]
@@ -556,8 +557,8 @@ checkinApp.controller( 'CheckinController', function ( $scope, $http, $timeout )
             <tr ng-repeat="checkin in checkins">
             <td>
                 <span ng-show="checkin.issueinformation.date_due">
-                    <span class="overdue" ng-show="checkin.issueinformation.overdue">{{checkin.issueinformation.date_due}} (overdue)</span>
-                    <span ng-hide="checkin.issueinformation.overdue">{{checkin.issueinformation.date_due}}</span>
+                    <span class="overdue" ng-show="checkin.issueinformation.overdue">{{checkin.issueinformation.date_due_formatted}} (overdue)</span>
+                    <span ng-hide="checkin.issueinformation.overdue">{{checkin.issueinformation.date_due_formatted}}</span>
                 </span>
                 <span ng-hide="checkin.issueinformation.date_due">
                     Not checked out
@@ -568,20 +569,19 @@ checkinApp.controller( 'CheckinController', function ( $scope, $http, $timeout )
             <td>{{checkin.biblio.author}}</td>
             <td><a href="/cgi-bin/koha/catalogue/moredetail.pl?biblionumber={{checkin.biblio.biblionumber}}&amp;itemnumber={{checkin.issueinformation.itemnumber}}#item{{checkin.issueinformation.itemnumber}}">{{checkin.issueinformation.barcode}}</a></td>
             <td>{{checkin.issueinformation.homebranch}}</td>
-            <td>{{chekcin.issueinformation.holdingbranch}}</td>
-            <td>{{checkin.issueinformation.location}}</td>
+            <td>{{checkin.issueinformation.holdingbranch}}</td>
+            <td>{{authorised_values['[% authvalcode_location %]'][checkin.issueinformation.location]}}</td>
             <td>{{checkin.issueinformation.itemcallnumber}}</td>
             <td>{{checkin.issueinformation.itemtype}} {{checkin.issueinformation.ccode}}</td>
-            <td>[% IF ( riloo.duedate ) %]
-                <a href="/cgi-bin/koha/members/moremember.pl?borrowernumber=[% riloo.borrowernumber %]">
-                    [% riloo.borsurname %], [% riloo.borfirstname %] ([% riloo.borcategorycode %])
+            <td>
+                <a href="/cgi-bin/koha/members/moremember.pl?borrowernumber={{ checkin.borrower.borrowernumber }}" ng-show="checkin.issueinformation.date_due">
+                    {{ checkin.borrower.surname }}, {{ checkin.borrower.firstname }}, ({{ checkin.borrower.categorycode }})
                 </a>
-            [% ELSE %]Not checked out[% END %]</td>
-            <td>[% IF ( riloo.bornote ) %]<span class="circ-hlt">[% riloo.bornote %]<br /></span>[% END %]
-            [% IF ( riloo.itemnote ) %]<span class="circ-hlt">[% riloo.itemnote %]</span>[% END %]
+            <span ng-hide="checkin.issueinformation.date_due">Not checked out</span></td>
+            <td><span class="circ-hlt" ng-show="checkin.borrower.borrowernotes">{{ checkin.borrower.borrowernotes }}<br /></span>
+            <span class="circ-hlt" ng-show="checkin.issueinformation.itemnote">{{ checkin.issueinformation.itemnote }}</span>
             </td>
            </tr>
-        [% END %]
     </table></div>
 </div>
 
