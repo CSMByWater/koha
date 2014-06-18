@@ -23,6 +23,7 @@
 [% INCLUDE 'timepicker.inc' %]
 <script src="[% interface %]/lib/angular/angular.min.js"></script>
 <script src="[% interface %]/lib/jquery/plugins/jquery.dataTables.rowGrouping.js"></script>
+<script src="[% interface %]/lib/jquery/plugins/dataTables.fnReloadAjax.js"></script>
 <script src="[% themelang %]/js/checkouts.js"></script>
 <script>
 //<![CDATA[
@@ -71,7 +72,16 @@ checkoutApp.controller( 'CheckoutController', function ( $scope, $http, $timeout
     });
 
     function refresh_checkouts() {
+        $( "#issues-table" ).dataTable().fnReloadAjax( null, 
+        function () {
+            $( "#issues-table" ).dataTable().rowGrouping(
+            {
+                 iGroupingOrderByColumnIndex: 0,
+                 sGroupingColumnSortDirection: "desc"
+            });
+        });
     }
+
 
     $scope.checkout = function(barcode, confirmed) {
         var barcode = barcode || $scope.barcode;

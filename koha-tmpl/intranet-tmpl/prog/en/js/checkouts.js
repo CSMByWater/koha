@@ -308,7 +308,7 @@ $(document).ready(function() {
                 fnCallback(json)
             } );
         },
-        "fnInitComplete": function(oSettings) {
+        "fnInitComplete": function removeRowGrouping(oSettings) {
             // Disable rowGrouping plugin after first use
             // so any sorting on the table doesn't use it
             var oSettings = issuesTable.fnSettings();
@@ -321,6 +321,7 @@ $(document).ready(function() {
             }
 
             oSettings.aaSortingFixed = null;
+            oSettings.aoDrawCallback.push( { fn:removeRowGrouping, sName:"removeRowGrouping" } );
         },
     }).rowGrouping(
         {
