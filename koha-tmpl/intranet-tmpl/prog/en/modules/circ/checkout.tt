@@ -57,8 +57,6 @@ var checkoutApp = angular.module( 'checkoutApp', [] )
     } );
 
 checkoutApp.controller( 'CheckoutController', function ( $scope, $http, $timeout ) {
-    $.fn.dataTableExt.sErrMode = 'exception';
-
     $scope.today = $.datepicker.formatDate('yyyy-mm-dd', new Date());
     $http.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded";
     $scope.borrowernumber = [% borrowernumber %];
@@ -81,7 +79,6 @@ checkoutApp.controller( 'CheckoutController', function ( $scope, $http, $timeout
             });
         });
     }
-
 
     $scope.checkout = function(barcode, confirmed) {
         var barcode = barcode || $scope.barcode;
@@ -571,7 +568,7 @@ $(document).ready( function() {
 <div class="yui-g" ng-show="borrower"><div id="patronlists" class="toptabs">
 
 <ul>
-<li> <a href="#checkouts">{{ checkouts.length }} Checkout(s)</a></li>
+<li> <a href="#checkouts">{{ num_checkouts }}Checkouts</a></li>
 [% IF ( displayrelissues ) %]
 <li><a href="#relissues">Relatives' checkouts</a></li>
 [% END %]
